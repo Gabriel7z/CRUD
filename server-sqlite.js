@@ -1,15 +1,15 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
+const Database = require('better-sqlite3');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 const SECRET_KEY = 'segredo-super-seguro-2025';
 
-// Upload config
+// Configuração de upload
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = './uploads';
@@ -32,114 +32,124 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
-const db = new sqlite3.Database('semelle.db');
+// Banco de dados com better-sqlite3
+const db = new Database('semelle.db');
 
+// Funções auxiliares para manter compatibilidade com o código existente (Promises)
 function runQuery(sql, params = []) {
-    return new Promise((resolve, reject) => {
-        db.run(sql, params, function(err) {
-            if (err) reject(err);
-            else resolve(this);
-        });
-    });
+    try {
+        const stmt = db.prepare(sql);
+        const result = stmt.run(...params);
+        return Promise.resolve({ lastID: result.lastInsertRowid, changes: result.changes });
+    } catch (err) {
+        return Promise.reject(err);
+    }
 }
+
 function getQuery(sql, params = []) {
-    return new Promise((resolve, reject) => {
-        db.get(sql, params, (err, row) => {
-            if (err) reject(err);
-            else resolve(row);
-        });
-    });
+    try {
+        const stmt = db.prepare(sql);
+        const row = stmt.get(...params);
+        return Promise.resolve(row);
+    } catch (err) {
+        return Promise.reject(err);
+    }
 }
+
 function allQuery(sql, params = []) {
-    return new Promise((resolve, reject) => {
-        db.all(sql, params, (err, rows) => {
-            if (err) reject(err);
-            else resolve(rows);
-        });
-    });
+    try {
+        const stmt = db.prepare(sql);
+        const rows = stmt.all(...params);
+        return Promise.resolve(rows);
+    } catch (err) {
+        return Promise.reject(err);
+    }
 }
 
-db.serialize(() => {
-    db.run(`CREATE TABLE IF NOT EXISTS usuarios (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT NOT NULL,
-        email TEXT NOT NULL UNIQUE,
-        senha TEXT NOT NULL,
-        role TEXT DEFAULT 'user'
-    )`);
-    db.run(`CREATE TABLE IF NOT EXISTS produtos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT NOT NULL,
-        preco REAL NOT NULL,
-        usuario_id INTEGER NOT NULL,
-        FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
-    )`);
-    db.run(`CREATE TABLE IF NOT EXISTS clientes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT NOT NULL,
-        telefone TEXT,
-        endereco TEXT,
-        limite_credito REAL DEFAULT 0,
-        data_cadastro DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
-    db.run(`CREATE TABLE IF NOT EXISTS vendas (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        data_venda DATETIME DEFAULT CURRENT_TIMESTAMP,
-        cliente_id INTEGER NOT NULL,
-        valor_total REAL NOT NULL,
-        forma_pagamento TEXT DEFAULT 'Dinheiro',
-        status_pagamento TEXT DEFAULT 'Pago',
-        usuario_id INTEGER NOT NULL,
-        FOREIGN KEY(cliente_id) REFERENCES clientes(id),
-        FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
-    )`);
-    db.run(`CREATE TABLE IF NOT EXISTS itens_venda (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        venda_id INTEGER NOT NULL,
-        produto_id INTEGER NOT NULL,
-        tamanho TEXT NOT NULL,
-        quantidade INTEGER NOT NULL,
-        preco_unitario REAL NOT NULL,
-        subtotal REAL NOT NULL,
-        FOREIGN KEY(venda_id) REFERENCES vendas(id),
-        FOREIGN KEY(produto_id) REFERENCES produtos(id)
-    )`);
-    db.run(`CREATE TABLE IF NOT EXISTS fluxo_caixa (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tipo TEXT NOT NULL,
-        categoria TEXT NOT NULL,
-        descricao TEXT,
-        valor REAL NOT NULL,
-        data_movimento DATETIME DEFAULT CURRENT_TIMESTAMP,
-        comprovante TEXT,
-        usuario_id INTEGER NOT NULL
-    )`);
-    db.run(`CREATE TABLE IF NOT EXISTS produtos_tamanhos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        produto_id INTEGER NOT NULL,
-        tamanho TEXT NOT NULL,
-        quantidade INTEGER NOT NULL DEFAULT 0,
-        FOREIGN KEY(produto_id) REFERENCES produtos(id) ON DELETE CASCADE,
-        UNIQUE(produto_id, tamanho)
-    )`);
+// Criação das tabelas (síncrono)
+const createTables = () => {
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            email TEXT NOT NULL UNIQUE,
+            senha TEXT NOT NULL,
+            role TEXT DEFAULT 'user'
+        );
+        CREATE TABLE IF NOT EXISTS produtos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            preco REAL NOT NULL,
+            usuario_id INTEGER NOT NULL,
+            FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+        );
+        CREATE TABLE IF NOT EXISTS clientes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            telefone TEXT,
+            endereco TEXT,
+            limite_credito REAL DEFAULT 0,
+            data_cadastro DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS vendas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            data_venda DATETIME DEFAULT CURRENT_TIMESTAMP,
+            cliente_id INTEGER NOT NULL,
+            valor_total REAL NOT NULL,
+            forma_pagamento TEXT DEFAULT 'Dinheiro',
+            status_pagamento TEXT DEFAULT 'Pago',
+            usuario_id INTEGER NOT NULL,
+            FOREIGN KEY(cliente_id) REFERENCES clientes(id),
+            FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+        );
+        CREATE TABLE IF NOT EXISTS itens_venda (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            venda_id INTEGER NOT NULL,
+            produto_id INTEGER NOT NULL,
+            tamanho TEXT NOT NULL,
+            quantidade INTEGER NOT NULL,
+            preco_unitario REAL NOT NULL,
+            subtotal REAL NOT NULL,
+            FOREIGN KEY(venda_id) REFERENCES vendas(id),
+            FOREIGN KEY(produto_id) REFERENCES produtos(id)
+        );
+        CREATE TABLE IF NOT EXISTS fluxo_caixa (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tipo TEXT NOT NULL,
+            categoria TEXT NOT NULL,
+            descricao TEXT,
+            valor REAL NOT NULL,
+            data_movimento DATETIME DEFAULT CURRENT_TIMESTAMP,
+            comprovante TEXT,
+            usuario_id INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS produtos_tamanhos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            produto_id INTEGER NOT NULL,
+            tamanho TEXT NOT NULL,
+            quantidade INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY(produto_id) REFERENCES produtos(id) ON DELETE CASCADE,
+            UNIQUE(produto_id, tamanho)
+        );
+    `);
+};
+createTables();
 
-    // Cliente padrão
-    db.get(`SELECT id FROM clientes WHERE nome = 'Consumidor Final'`, (err, row) => {
-        if (!err && !row) db.run(`INSERT INTO clientes (nome) VALUES (?)`, ['Consumidor Final']);
-    });
+// Cliente padrão
+const clientePadrao = db.prepare(`SELECT id FROM clientes WHERE nome = 'Consumidor Final'`).get();
+if (!clientePadrao) {
+    db.prepare(`INSERT INTO clientes (nome) VALUES (?)`).run('Consumidor Final');
+}
 
-    // Usuário admin padrão
-    db.get(`SELECT id FROM usuarios WHERE email = 'admin@semelle.com'`, (err, row) => {
-        if (err) return console.error(err);
-        if (!row) {
-            const hash = bcrypt.hashSync('123456', 10);
-            db.run(`INSERT INTO usuarios (nome, email, senha, role) VALUES (?, ?, ?, ?)`,
-                ['Administrador', 'admin@semelle.com', hash, 'admin']);
-            console.log('Usuário admin criado: admin@semelle.com / 123456');
-        }
-    });
-});
+// Usuário admin padrão
+const adminExistente = db.prepare(`SELECT id FROM usuarios WHERE email = 'admin@semelle.com'`).get();
+if (!adminExistente) {
+    const hash = bcrypt.hashSync('123456', 10);
+    db.prepare(`INSERT INTO usuarios (nome, email, senha, role) VALUES (?, ?, ?, ?)`).run('Administrador', 'admin@semelle.com', hash, 'admin');
+    console.log('Usuário admin criado: admin@semelle.com / 123456');
+}
 
+// Funções de autenticação
 function autenticarToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -152,14 +162,13 @@ function autenticarToken(req, res, next) {
 }
 
 function verificarAdmin(req, res, next) {
-    db.get(`SELECT role FROM usuarios WHERE id = ?`, [req.user.id], (err, row) => {
-        if (err) return res.status(500).json({ erro: err.message });
-        if (!row || row.role !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
-        next();
-    });
+    const user = db.prepare(`SELECT role FROM usuarios WHERE id = ?`).get(req.user.id);
+    if (!user || user.role !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
+    next();
 }
 
-// ========== LOGIN ==========
+// ========== ROTAS (mesmas de antes, mas agora usando as funções adaptadas) ==========
+
 app.post('/login', async (req, res) => {
     const { email, senha } = req.body;
     if (!email || !senha) return res.status(400).json({ erro: 'Email e senha obrigatórios' });
@@ -172,13 +181,13 @@ app.post('/login', async (req, res) => {
     } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
-// ========== ADMIN ==========
 app.get('/admin/usuarios', autenticarToken, verificarAdmin, async (req, res) => {
     try {
         const rows = await allQuery(`SELECT id, nome, email, role FROM usuarios ORDER BY id`);
         res.json(rows);
     } catch (err) { res.status(500).json({ erro: err.message }); }
 });
+
 app.post('/admin/usuarios', autenticarToken, verificarAdmin, async (req, res) => {
     const { nome, email, senha, role } = req.body;
     if (!nome || !email || !senha) return res.status(400).json({ erro: 'Nome, email e senha obrigatórios' });
@@ -190,6 +199,7 @@ app.post('/admin/usuarios', autenticarToken, verificarAdmin, async (req, res) =>
         res.status(201).json({ id: result.lastID, nome, email, role });
     } catch (err) { res.status(500).json({ erro: err.message }); }
 });
+
 app.delete('/admin/usuarios/:id', autenticarToken, verificarAdmin, async (req, res) => {
     const id = req.params.id;
     if (id == req.user.id) return res.status(400).json({ erro: 'Não pode excluir seu próprio usuário.' });
@@ -200,7 +210,7 @@ app.delete('/admin/usuarios/:id', autenticarToken, verificarAdmin, async (req, r
     } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
-// ========== CLIENTES ==========
+// CLIENTES
 app.get('/clientes', autenticarToken, async (req, res) => {
     try {
         const rows = await allQuery(`SELECT * FROM clientes ORDER BY nome`);
@@ -233,7 +243,7 @@ app.delete('/clientes/:id', autenticarToken, async (req, res) => {
     } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
-// ========== PRODUTOS ==========
+// PRODUTOS
 app.get('/produtos', autenticarToken, async (req, res) => {
     try {
         const rows = await allQuery(`
@@ -273,7 +283,7 @@ app.delete('/produtos/:id', autenticarToken, async (req, res) => {
     } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
-// ========== TAMANHOS ==========
+// TAMANHOS (similar, mas com adaptações para better-sqlite3)
 app.get('/produtos/:id/tamanhos', autenticarToken, async (req, res) => {
     try {
         const rows = await allQuery(`SELECT * FROM produtos_tamanhos WHERE produto_id = ? ORDER BY tamanho`, [req.params.id]);
@@ -308,18 +318,16 @@ app.delete('/produtos/tamanhos/:id', autenticarToken, async (req, res) => {
     } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
-// ========== VENDAS ==========
+// VENDAS
 app.post('/vendas', autenticarToken, async (req, res) => {
     const { cliente_id, itens, forma_pagamento, status_pagamento } = req.body;
     if (!cliente_id || !itens || !itens.length) return res.status(400).json({ erro: 'Cliente e itens são obrigatórios' });
-    await new Promise((resolve, reject) => db.run("BEGIN TRANSACTION", err => err ? reject(err) : resolve()));
+    // Como better-sqlite3 não tem transação assíncrona, usamos exec com BEGIN/COMMIT via run (síncrono dentro da Promise)
     try {
+        db.exec('BEGIN TRANSACTION');
         let valor_total = 0;
         for (const item of itens) {
-            const row = await getQuery(
-                `SELECT pt.quantidade, p.preco FROM produtos_tamanhos pt JOIN produtos p ON p.id = pt.produto_id WHERE pt.produto_id = ? AND pt.tamanho = ? AND p.usuario_id = ?`,
-                [item.produto_id, item.tamanho, req.user.id]
-            );
+            const row = await getQuery(`SELECT pt.quantidade, p.preco FROM produtos_tamanhos pt JOIN produtos p ON p.id = pt.produto_id WHERE pt.produto_id = ? AND pt.tamanho = ? AND p.usuario_id = ?`, [item.produto_id, item.tamanho, req.user.id]);
             if (!row) throw new Error(`Tamanho ${item.tamanho} não encontrado`);
             if (row.quantidade < item.quantidade) throw new Error(`Estoque insuficiente para tamanho ${item.tamanho}. Disponível: ${row.quantidade}`);
             valor_total += row.preco * item.quantidade;
@@ -334,10 +342,10 @@ app.post('/vendas', autenticarToken, async (req, res) => {
             await runQuery(`UPDATE produtos_tamanhos SET quantidade = quantidade - ? WHERE produto_id = ? AND tamanho = ?`, [item.quantidade, item.produto_id, item.tamanho]);
         }
         await runQuery(`INSERT INTO fluxo_caixa (tipo, categoria, descricao, valor, usuario_id) VALUES (?, ?, ?, ?, ?)`, ['receita', 'venda', `Venda #${venda_id}`, valor_total, req.user.id]);
-        await new Promise((resolve, reject) => db.run("COMMIT", err => err ? reject(err) : resolve()));
+        db.exec('COMMIT');
         res.status(201).json({ id: venda_id, valor_total, cliente_id });
     } catch (error) {
-        await new Promise(resolve => db.run("ROLLBACK", () => resolve()));
+        db.exec('ROLLBACK');
         console.error(error);
         res.status(400).json({ erro: error.message });
     }
@@ -350,34 +358,17 @@ app.get('/vendas', autenticarToken, async (req, res) => {
     } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
-// ========== ROTA PARA DETALHES DA VENDA (COMPROVANTE) - CORRIGIDA ==========
+// ROTA DO COMPROVANTE (já corrigida)
 app.get('/vendas/:id', autenticarToken, async (req, res) => {
     try {
-        // Buscar venda sem filtrar por usuario_id para evitar problemas (mas ainda verifica token)
-        const venda = await getQuery(`
-            SELECT v.*, c.nome as cliente_nome
-            FROM vendas v
-            JOIN clientes c ON v.cliente_id = c.id
-            WHERE v.id = ?
-        `, [req.params.id]);
-        
+        const venda = await getQuery(`SELECT v.*, c.nome as cliente_nome FROM vendas v JOIN clientes c ON v.cliente_id = c.id WHERE v.id = ?`, [req.params.id]);
         if (!venda) return res.status(404).json({ erro: 'Venda não encontrada' });
-
-        const itens = await allQuery(`
-            SELECT iv.*, p.nome as produto_nome
-            FROM itens_venda iv
-            JOIN produtos p ON iv.produto_id = p.id
-            WHERE iv.venda_id = ?
-        `, [req.params.id]);
-
+        const itens = await allQuery(`SELECT iv.*, p.nome as produto_nome FROM itens_venda iv JOIN produtos p ON iv.produto_id = p.id WHERE iv.venda_id = ?`, [req.params.id]);
         res.json({ venda, itens });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ erro: err.message });
-    }
+    } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
-// ========== FLUXO DE CAIXA ==========
+// FLUXO DE CAIXA
 app.post('/fluxo', autenticarToken, upload.single('comprovante'), async (req, res) => {
     const { tipo, categoria, descricao, valor, data_movimento } = req.body;
     if (!tipo || !categoria || !valor) return res.status(400).json({ erro: 'Tipo, categoria e valor obrigatórios' });
@@ -395,7 +386,7 @@ app.get('/fluxo', autenticarToken, async (req, res) => {
     } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
-// ========== BACKUP ==========
+// BACKUP
 app.post('/admin/backup', autenticarToken, verificarAdmin, async (req, res) => {
     const backupDir = './backups';
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir);
@@ -407,7 +398,7 @@ app.post('/admin/backup', autenticarToken, verificarAdmin, async (req, res) => {
     } catch (err) { res.status(500).json({ erro: err.message }); }
 });
 
-// ========== DASHBOARD ==========
+// DASHBOARD (todas as rotas)
 app.get('/dashboard/mes', autenticarToken, async (req, res) => {
     try {
         const row = await getQuery(`
