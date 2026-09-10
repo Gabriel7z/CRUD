@@ -8,7 +8,13 @@ export type Profile = {
   role: Role;
 };
 
-export type EventKind = "culto" | "ensaio" | "saida" | "retiro" | "outro";
+export type EventKind =
+  | "encontro"
+  | "culto"
+  | "vigilia"
+  | "futebol"
+  | "festa"
+  | "outro";
 
 export type EventItem = {
   id: string;

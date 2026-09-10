@@ -5,10 +5,11 @@ import { formatWhen } from "../lib/dates";
 import type { EventItem, EventKind } from "../lib/types";
 
 const kindLabel: Record<EventKind, string> = {
+  encontro: "Encontro",
   culto: "Culto",
-  ensaio: "Ensaio",
-  saida: "Saída",
-  retiro: "Retiro",
+  vigilia: "Vigília",
+  futebol: "Futebol",
+  festa: "Festa",
   outro: "Outro",
 };
 
@@ -117,10 +118,11 @@ function EventForm({
         <input name="location" required placeholder="Local" className="field" />
         <input name="starts_at" required type="datetime-local" className="field" />
         <select name="kind" className="field">
+          <option value="encontro">Encontro</option>
           <option value="culto">Culto</option>
-          <option value="ensaio">Ensaio</option>
-          <option value="saida">Saída</option>
-          <option value="retiro">Retiro</option>
+          <option value="vigilia">Vigília</option>
+          <option value="futebol">Futebol</option>
+          <option value="festa">Festa</option>
           <option value="outro">Outro</option>
         </select>
         <textarea name="description" required placeholder="Detalhes" className="field min-h-24" />

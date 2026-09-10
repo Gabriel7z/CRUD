@@ -16,7 +16,7 @@ import type {
   Suggestion,
 } from "./types";
 
-const DEMO_KEY = "manancial-demo-db";
+const DEMO_KEY = "manancial-demo-db-v2";
 
 type DemoDb = {
   events: EventItem[];

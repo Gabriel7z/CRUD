@@ -30,6 +30,8 @@ export function countdownParts(target: Date, now = new Date()) {
   };
 }
 
+const BR_TZ = "America/Sao_Paulo";
+
 export function formatWhen(iso: string): string {
   return new Intl.DateTimeFormat("pt-BR", {
     weekday: "long",
@@ -37,6 +39,7 @@ export function formatWhen(iso: string): string {
     month: "long",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: BR_TZ,
   }).format(new Date(iso));
 }
 
@@ -45,6 +48,7 @@ export function formatDay(iso: string): string {
     weekday: "short",
     day: "2-digit",
     month: "short",
+    timeZone: BR_TZ,
   }).format(new Date(iso));
 }
 

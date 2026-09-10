@@ -18,7 +18,7 @@ create table if not exists public.events (
   description text not null default '',
   starts_at timestamptz not null,
   location text not null,
-  kind text not null default 'culto' check (kind in ('culto', 'ensaio', 'saida', 'retiro', 'outro')),
+  kind text not null default 'encontro' check (kind in ('encontro', 'culto', 'vigilia', 'futebol', 'festa', 'outro')),
   created_at timestamptz not null default now()
 );
 
@@ -165,11 +165,24 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- Agenda 2026 da juventude
 insert into public.events (title, description, starts_at, location, kind) values
-  ('Culto de jovens', 'Noite de louvor, palavra e comunhão.', now() + interval '2 days', 'Templo ADESA 829', 'culto'),
-  ('Ensaio da banda', 'Ensaio aberto para quem serve no louvor e no som.', now() + interval '4 days', 'Sala de ensaio', 'ensaio'),
-  ('Saída evangelística', 'Convite, oração e um versículo nas ruas do bairro.', now() + interval '9 days', 'Praça central', 'saida'),
-  ('Retiro Manancial', 'Fim de semana de imersão, amizade e encontro com Jesus.', now() + interval '21 days', 'Sítio Esperança', 'retiro');
+  ('Aniversário Pr. Carlos', 'Vamos celebrar a vida do nosso pastor.', '2026-09-14T19:30:00-03:00', 'ADESA 829', 'festa'),
+  ('Encontro dos jovens', 'Louvor, palavra e comunhão da juventude.', '2026-09-24T19:30:00-03:00', 'ADESA 829', 'encontro'),
+  ('Futebol', 'Tarde de jogo e amizade.', '2026-09-26T15:00:00-03:00', 'Quadra', 'futebol'),
+  ('Encontro dos jovens', 'Louvor, palavra e comunhão da juventude.', '2026-10-08T19:30:00-03:00', 'ADESA 829', 'encontro'),
+  ('Galinhada', 'Almoço da juventude. Confirme presença.', '2026-10-10T12:00:00-03:00', 'ADESA 829', 'festa'),
+  ('Vigília', 'Noite de oração e busca.', '2026-10-16T21:00:00-03:00', 'Congregação 507', 'vigilia'),
+  ('Encontro dos jovens', 'Louvor, palavra e comunhão da juventude.', '2026-10-22T19:30:00-03:00', 'ADESA 829', 'encontro'),
+  ('Futebol', 'Tarde de jogo e amizade.', '2026-10-24T15:00:00-03:00', 'Quadra', 'futebol'),
+  ('Culto', 'Culto da juventude na congregação 615.', '2026-10-31T19:00:00-03:00', 'Congregação 615', 'culto'),
+  ('Encontro dos jovens', 'Louvor, palavra e comunhão da juventude.', '2026-11-05T19:30:00-03:00', 'ADESA 829', 'encontro'),
+  ('Futebol', 'Tarde de jogo e amizade.', '2026-11-14T15:00:00-03:00', 'Quadra', 'futebol'),
+  ('Encontro dos jovens', 'Louvor, palavra e comunhão da juventude.', '2026-11-19T19:30:00-03:00', 'ADESA 829', 'encontro'),
+  ('Culto', 'Culto da juventude na ADESA 829.', '2026-11-21T19:30:00-03:00', 'ADESA 829', 'culto'),
+  ('Encontro dos jovens', 'Louvor, palavra e comunhão da juventude.', '2026-12-03T19:30:00-03:00', 'ADESA 829', 'encontro'),
+  ('Confraternização dos jovens', 'Encerramento do ano com comida boa e gratidão.', '2026-12-05T19:00:00-03:00', 'ADESA 829', 'festa'),
+  ('Encontro — agenda do próximo ano', 'Avaliação do ano e montagem da agenda.', '2026-12-17T19:30:00-03:00', 'ADESA 829', 'encontro');
 
 insert into public.campaigns (title, description, goal, current, unit, ends_at) values
   ('21 dias de oração', 'Orar todos os dias pelo despertar da nossa geração.', 21, 9, 'oracao', now() + interval '12 days'),
