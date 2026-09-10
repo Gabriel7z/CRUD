@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --color-ink: #081616;
+  --color-deep: #0e3a36;
+  --color-spring: #1c7a6c;
+  --color-gold: #c9a44a;
+  --color-cream: #f4efe4;
+  --color-foam: #e7f3ef;
+  --color-mist: #8eaaa6;
+  --color-leaf: #2f9b7a;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-cream);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: #c9a44a55;
+}
+
+.water-bg {
+  background:
+    radial-gradient(1200px 700px at 80% -10%, #1f8f7e55, transparent 55%),
+    radial-gradient(900px 500px at -10% 110%, #c9a44a33, transparent 50%),
+    linear-gradient(165deg, #071a18 0%, #0e3a36 48%, #123f38 100%);
+}
+
+.ripple-ring {
+  position: absolute;
+  border: 1px solid rgba(201, 164, 74, 0.28);
+  border-radius: 9999px;
+  animation: pulse-ring 7s ease-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.65);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+.glass {
+  background: color-mix(in srgb, white 12%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(16px);
+}
+
+.field {
+  width: 100%;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--color-deep) 15%, transparent);
+  background: white;
+  padding: 0.8rem 1rem;
+  font-size: 0.925rem;
+  color: var(--color-ink);
+  outline: none;
+}
+
+.field:focus {
+  border-color: var(--color-spring);
+}
