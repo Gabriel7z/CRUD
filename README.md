@@ -1,96 +1,45 @@
-# 👟 Semelle - Sistema de Gestão de Vendas e Estoque
+# Grupo Manancial · Jovens ADESA 829
 
-Sistema completo para loja de calçados, com controle de produtos, estoque por tamanhos, vendas, fluxo de caixa, clientes e **impressão de comprovante de venda**.
+Portal da juventude: agenda, lembrete do próximo encontro, sugestões, campanhas e temas de estudo. O login é feito com Gmail pelo Supabase.
 
-## 🌐 Acesse o sistema online
+## Rodar localmente
 
-🔗 **URL do sistema:** [https://dulcet-narwhal-c7632b.netlify.app](https://dulcet-narwhal-c7632b.netlify.app)
-
-> ⚠️ O backend está hospedado no plano gratuito do Render. Pode haver um atraso de até 50 segundos na primeira requisição enquanto o serviço desperta.
-
-## 🔐 Credenciais de acesso (administrador)
-
-- **E-mail:** `admin@semelle.com`
-- **Senha:** `123456`
-
-Após login, você pode cadastrar produtos, clientes, realizar vendas e emitir comprovantes.
-
-## ✨ Funcionalidades principais
-
-- **Dashboard** com gráficos de vendas por dia, forma de pagamento e top clientes
-- **Gestão de produtos** com estoque por tamanhos (do 33 ao 46 + tamanhos personalizados)
-- **Registro de vendas** com baixa automática de estoque
-- **Histórico de vendas** e reimpressão de comprovante
-- **Controle de clientes** (limite de crédito, endereço, telefone)
-- **Fluxo de caixa** (receitas e despesas com upload de comprovante)
-- **Backup manual** do banco de dados (apenas administrador)
-- **Autenticação JWT** com dois perfis: usuário comum e administrador
-
-## 🛠️ Tecnologias utilizadas
-
-### Backend
-- Node.js + Express
-- better-sqlite3 (banco de dados SQLite)
-- JWT para autenticação
-- bcryptjs para hash de senhas
-- multer para upload de arquivos
-
-### Frontend
-- HTML5, CSS3, JavaScript puro
-- Chart.js para gráficos
-- Font Awesome para ícones
-- Design responsivo e botão de impressão do comprovante
-
-### Hospedagem
-- **Render** – backend (API) → [https://semelle-api.onrender.com](https://semelle-api.onrender.com)
-- **Netlify** – frontend (interface) → [https://dulcet-narwhal-c7632b.netlify.app](https://dulcet-narwhal-c7632b.netlify.app)
-
-## 🚀 Como rodar localmente
-
-1. **Clone o repositório:**
-   ```bash
-   git clone https://github.com/Gabriel7z/CRUD.git
-   cd CRUD
-
-
-   Instale as dependências:
-
-bash
+```bash
 npm install
-Inicie o servidor backend:
+cp .env.example .env
+npm run dev
+```
 
-bash
-node server-sqlite.js
-O servidor rodará em http://localhost:3000
+Sem as chaves do Supabase, o site abre em **modo demonstração** (entrada como jovem ou líder, dados de exemplo).
 
-Abra o arquivo index.html no navegador (ou use Live Server).
+## Ligar o Supabase e o Gmail
 
-Faça login com as credenciais acima.
+1. Crie um projeto em [supabase.com](https://supabase.com).
+2. Em **Authentication → Providers**, ative o **Google**.
+3. No Google Cloud, crie credenciais OAuth (tipo *Web application*) e cole Client ID / Secret no Supabase.
+4. Em **Authentication → URL configuration**, coloque a URL do site em *Site URL* e *Redirect URLs* (`http://localhost:5173` e a URL de produção).
+5. Rode o arquivo `supabase/schema.sql` no SQL Editor.
+6. Copie **Project URL** e **anon public key** para o `.env`:
 
-📦 Estrutura de pastas (relevante)
-text
-/
-├── server-sqlite.js          # Backend principal
-├── index.html                # Frontend completo (all-in-one)
-├── package.json              # Dependências Node.js
-├── semelle.db                # Banco de dados (criado na primeira execução)
-├── uploads/                  # Pasta para comprovantes (criada automaticamente)
-├── backups/                  # Pasta para backups (criada ao gerar backup)
-└── README.md                 # Este arquivo
-⚙️ Configuração para produção (ambiente online)
-O backend está configurado para usar a porta fornecida pelo serviço de hospedagem (process.env.PORT).
+```
+VITE_SUPABASE_URL=https://xxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJ...
+```
 
-O frontend aponta para a URL do backend através da variável API no index.html.
+7. Depois do primeiro login da liderança:
 
-Para deploy no Render: comando node server-sqlite.js.
+```sql
+update public.profiles set role = 'lider' where email = 'seu-gmail@gmail.com';
+```
 
-Para deploy no Netlify: arrastar a pasta contendo o index.html.
+Quem é líder publica agenda, campanha e temas. Todo jovem autenticado vê o conteúdo, confirma presença e envia sugestões.
 
-📄 Licença
-Este projeto está sob a licença MIT. Sinta-se à vontade para usar, modificar e distribuir.
+## Publicar
 
-✒️ Autor
-Gabriel Ferreira – GitHub
+O `npm run build` gera a pasta `dist`. O repositório já inclui `netlify.toml` e `vercel.json` para o roteamento da SPA.
 
+## Identidade
 
-
+- Nome: **Grupo Manancial**
+- Igreja: **Jovens ADESA 829**
+- Verso: João 7:38 — “rios de água viva correrão do seu interior.”
