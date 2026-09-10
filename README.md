@@ -1,6 +1,6 @@
 # Grupo Manancial · Jovens ADESA 829
 
-Portal da juventude: agenda, lembrete do próximo encontro, sugestões, campanhas e temas de estudo. O jovem entra com o **Gmail**; o Supabase envia um código de validação para essa caixa de entrada. Não usamos login do Google.
+Portal da juventude: agenda, lembrete do próximo encontro, sugestões, campanhas e temas de estudo. O jovem cria a conta com o **Gmail + senha** (validação pelo Supabase; só endereços @gmail.com entram). Não usamos login do Google.
 
 ## Rodar localmente
 
@@ -15,9 +15,8 @@ O site já vem apontando para o projeto Supabase do grupo (`src/lib/supabase.ts`
 ## Ligar o Supabase
 
 1. Crie um projeto em [supabase.com](https://supabase.com).
-2. Em **Authentication → Providers**, deixe o **Email** ligado (já vem assim). Não precisa ativar o Google.
-3. No template do e-mail, mantenha o código `{{ .Token }}` para o jovem colar no site.
-4. Em **Authentication → URL configuration**, coloque a URL do site em *Site URL* e *Redirect URLs* (`http://localhost:5173` e a URL de produção).
+2. Em **Authentication → Sign In / Providers → Email**, deixe o provider ligado. Para a conta entrar direto após o cadastro (sem clicar em link), desligue **Confirm email**.
+3. Em **Authentication → URL configuration**, coloque a URL do site em *Site URL* e *Redirect URLs* (`http://localhost:5173` e a URL de produção).
 5. Rode o arquivo `supabase/schema.sql` no SQL Editor.
 6. Copie **Project URL** e **anon public key** para o `.env`:
 

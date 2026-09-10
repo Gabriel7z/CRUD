@@ -3,44 +3,58 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { Logo } from "../components/Logo";
 import { useAuth } from "../lib/auth";
 
+type Mode = "entrar" | "criar";
+
 export function Login() {
-  const { user, loading, demo, sendGmailCode, verifyGmailCode, enterDemo } = useAuth();
+  const { user, loading, demo, signIn, signUp, enterDemo } = useAuth();
   const navigate = useNavigate();
+  const [mode, setMode] = useState<Mode>("entrar");
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [step, setStep] = useState<"email" | "code">("email");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
 
   if (!loading && user) return <Navigate to="/" replace />;
 
-  async function sendCode(event: FormEvent) {
+  function switchMode(next: Mode) {
+    setMode(next);
+    setError("");
+    setNotice("");
+    setPassword("");
+    setConfirm("");
+  }
+
+  async function submit(event: FormEvent) {
     event.preventDefault();
     setError("");
+    setNotice("");
     setBusy(true);
     try {
-      await sendGmailCode(email);
-      setStep("code");
+      if (mode === "entrar") {
+        await signIn(email, password);
+        navigate("/");
+      } else {
+        const { needsEmailConfirmation } = await signUp(email, password, confirm);
+        if (needsEmailConfirmation) {
+          switchMode("entrar");
+          setNotice(
+            "Conta criada! Abra o seu Gmail e clique no link de confirmação. Depois entre aqui com a sua senha.",
+          );
+        } else {
+          navigate("/");
+        }
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível enviar o código.");
+      setError(err instanceof Error ? err.message : "Algo deu errado. Tente de novo.");
     } finally {
       setBusy(false);
     }
   }
 
-  async function confirmCode(event: FormEvent) {
-    event.preventDefault();
-    setError("");
-    setBusy(true);
-    try {
-      await verifyGmailCode(email, code);
-      navigate("/");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Código inválido. Tente de novo.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const inputClass =
+    "mt-2 w-full rounded-full border border-cream/20 bg-white/10 px-5 py-3.5 text-sm font-medium text-cream outline-none placeholder:text-foam/50 focus:border-gold";
 
   return (
     <div className="water-bg relative min-h-screen overflow-hidden text-cream">
@@ -62,111 +76,125 @@ export function Login() {
           </h1>
           <p className="mt-5 max-w-sm text-base text-foam/85">
             Agenda, campanha, temas de estudo e um espaço para as ideias da
-            turma. Entre com o seu Gmail: o Supabase manda o código de
-            validação na sua caixa de entrada.
+            turma. Entre com o seu Gmail e a sua senha.
           </p>
         </div>
 
         <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-1 rounded-full bg-white/10 p-1">
+            <button
+              type="button"
+              onClick={() => switchMode("entrar")}
+              className={`rounded-full px-4 py-2.5 text-sm font-semibold ${
+                mode === "entrar" ? "bg-cream text-deep" : "text-foam/80"
+              }`}
+            >
+              Entrar
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode("criar")}
+              className={`rounded-full px-4 py-2.5 text-sm font-semibold ${
+                mode === "criar" ? "bg-cream text-deep" : "text-foam/80"
+              }`}
+            >
+              Criar conta
+            </button>
+          </div>
+
           {error && (
             <p className="rounded-2xl bg-red-500/15 px-4 py-3 text-sm text-red-100">
               {error}
             </p>
           )}
+          {notice && (
+            <p className="rounded-2xl bg-leaf/20 px-4 py-3 text-sm text-foam">
+              {notice}
+            </p>
+          )}
 
-          {step === "email" ? (
-            <form onSubmit={sendCode} className="space-y-3">
+          <form onSubmit={submit} className="space-y-3">
+            <label className="block text-xs uppercase tracking-[0.18em] text-gold">
+              Seu Gmail
+              <input
+                type="email"
+                name="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="seu.nome@gmail.com"
+                className={inputClass}
+              />
+            </label>
+            <label className="block text-xs uppercase tracking-[0.18em] text-gold">
+              {mode === "criar" ? "Crie uma senha" : "Sua senha"}
+              <input
+                type="password"
+                name="password"
+                autoComplete={mode === "criar" ? "new-password" : "current-password"}
+                required
+                minLength={6}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder={mode === "criar" ? "mínimo 6 caracteres" : "sua senha"}
+                className={inputClass}
+              />
+            </label>
+            {mode === "criar" && (
               <label className="block text-xs uppercase tracking-[0.18em] text-gold">
-                Seu Gmail
+                Repita a senha
                 <input
-                  type="email"
-                  name="email"
-                  autoComplete="email"
+                  type="password"
+                  name="confirm"
+                  autoComplete="new-password"
                   required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="seu.nome@gmail.com"
-                  className="mt-2 w-full rounded-full border border-cream/20 bg-white/10 px-5 py-3.5 text-sm font-medium text-cream outline-none placeholder:text-foam/50 focus:border-gold"
+                  minLength={6}
+                  value={confirm}
+                  onChange={(event) => setConfirm(event.target.value)}
+                  placeholder="a mesma senha"
+                  className={inputClass}
                 />
               </label>
+            )}
+            <button
+              type="submit"
+              disabled={busy}
+              className="w-full rounded-full bg-cream px-5 py-3.5 text-sm font-semibold text-deep disabled:opacity-70"
+            >
+              {busy
+                ? mode === "criar"
+                  ? "Criando conta..."
+                  : "Entrando..."
+                : mode === "criar"
+                  ? "Criar conta"
+                  : "Entrar"}
+            </button>
+          </form>
+
+          {demo && (
+            <div className="grid grid-cols-2 gap-2">
               <button
-                type="submit"
-                disabled={busy}
-                className="w-full rounded-full bg-cream px-5 py-3.5 text-sm font-semibold text-deep disabled:opacity-70"
+                type="button"
+                onClick={() => {
+                  enterDemo("jovem");
+                  navigate("/");
+                }}
+                className="rounded-full border border-cream/25 px-4 py-3 text-sm font-medium text-cream"
               >
-                {busy ? "Enviando..." : "Enviar código no Gmail"}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={confirmCode} className="space-y-3">
-              <p className="text-sm text-foam/80">
-                Enviamos um código de 6 números para <strong>{email}</strong>.
-              </p>
-              <label className="block text-xs uppercase tracking-[0.18em] text-gold">
-                Código de validação
-                <input
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  pattern="[0-9]*"
-                  maxLength={6}
-                  required
-                  value={code}
-                  onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="000000"
-                  className="mt-2 w-full rounded-full border border-cream/20 bg-white/10 px-5 py-3.5 text-center font-display text-2xl tracking-[0.4em] text-cream outline-none placeholder:text-foam/40 focus:border-gold"
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={busy || code.length !== 6}
-                className="w-full rounded-full bg-cream px-5 py-3.5 text-sm font-semibold text-deep disabled:opacity-70"
-              >
-                {busy ? "Validando..." : "Entrar"}
+                Entrar como jovem
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  setStep("email");
-                  setCode("");
-                  setError("");
+                  enterDemo("lider");
+                  navigate("/");
                 }}
-                className="w-full text-center text-sm text-foam/75"
+                className="rounded-full border border-gold/50 bg-gold/15 px-4 py-3 text-sm font-medium text-gold"
               >
-                Usar outro Gmail
+                Entrar como líder
               </button>
-            </form>
-          )}
-
-          {demo && (
-            <>
-              <p className="text-center text-xs text-foam/70">
-                O Supabase ainda não está ligado neste ambiente. Você pode
-                explorar o portal em modo demonstração, ou simular a
-                validação com qualquer código de 6 números.
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    enterDemo("jovem");
-                    navigate("/");
-                  }}
-                  className="rounded-full border border-cream/25 px-4 py-3 text-sm font-medium text-cream"
-                >
-                  Entrar como jovem
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    enterDemo("lider");
-                    navigate("/");
-                  }}
-                  className="rounded-full border border-gold/50 bg-gold/15 px-4 py-3 text-sm font-medium text-gold"
-                >
-                  Entrar como líder
-                </button>
-              </div>
-            </>
+            </div>
           )}
           <p className="pt-2 text-center text-[11px] tracking-wide text-mist">
             Assembleia de Deus · ADESA 829
