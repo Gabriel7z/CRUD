@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { demoProfile, isConfigured } from "./api";
+import { isGmail, nameFromGmail, normalizeGmail } from "./gmail";
 import { getSupabase } from "./supabase";
 import type { Profile, Role } from "./types";
 
@@ -17,7 +18,8 @@ type AuthValue = {
   user: Profile | null;
   loading: boolean;
   demo: boolean;
-  signInWithGoogle: () => Promise<void>;
+  sendGmailCode: (email: string) => Promise<void>;
+  verifyGmailCode: (email: string, token: string) => Promise<void>;
   enterDemo: (role: Role) => void;
   signOut: () => Promise<void>;
 };
@@ -31,6 +33,14 @@ function readDemoUser(): Profile | null {
   } catch {
     return null;
   }
+}
+
+function gmailOrThrow(email: string): string {
+  const value = normalizeGmail(email);
+  if (!isGmail(value)) {
+    throw new Error("Use um endereço @gmail.com para entrar.");
+  }
+  return value;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -59,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const profile: Profile = {
         id,
         email: email ?? "",
-        full_name: name || email?.split("@")[0] || "Jovem Manancial",
+        full_name: name || (email ? nameFromGmail(email) : "Jovem Manancial"),
         avatar_url: avatar ?? null,
         role: "jovem",
       };
@@ -105,17 +115,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       loading,
       demo,
-      signInWithGoogle: async () => {
+      sendGmailCode: async (email) => {
+        const gmail = gmailOrThrow(email);
+        const supabase = getSupabase();
+        if (!supabase) return;
+        const { error } = await supabase.auth.signInWithOtp({
+          email: gmail,
+          options: {
+            shouldCreateUser: true,
+            emailRedirectTo: window.location.origin,
+          },
+        });
+        if (error) throw error;
+      },
+      verifyGmailCode: async (email, token) => {
+        const gmail = gmailOrThrow(email);
+        const code = token.replace(/\s/g, "");
+        if (!/^\d{6}$/.test(code)) {
+          throw new Error("Digite o código de 6 números que chegou no Gmail.");
+        }
         const supabase = getSupabase();
         if (!supabase) {
-          throw new Error("Supabase ainda não está configurado.");
+          const profile: Profile = {
+            id: `demo-${gmail}`,
+            email: gmail,
+            full_name: nameFromGmail(gmail),
+            avatar_url: null,
+            role: "jovem",
+          };
+          localStorage.setItem(DEMO_SESSION, JSON.stringify(profile));
+          setUser(profile);
+          return;
         }
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo: window.location.origin,
-            queryParams: { prompt: "select_account" },
-          },
+        const { error } = await supabase.auth.verifyOtp({
+          email: gmail,
+          token: code,
+          type: "email",
         });
         if (error) throw error;
       },

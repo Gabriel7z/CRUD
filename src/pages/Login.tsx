@@ -1,23 +1,43 @@
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Logo } from "../components/Logo";
 import { useAuth } from "../lib/auth";
 
 export function Login() {
-  const { user, loading, demo, signInWithGoogle, enterDemo } = useAuth();
+  const { user, loading, demo, sendGmailCode, verifyGmailCode, enterDemo } = useAuth();
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<"email" | "code">("email");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   if (!loading && user) return <Navigate to="/" replace />;
 
-  async function google() {
+  async function sendCode(event: FormEvent) {
+    event.preventDefault();
     setError("");
     setBusy(true);
     try {
-      await signInWithGoogle();
+      await sendGmailCode(email);
+      setStep("code");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível entrar com o Gmail.");
+      setError(err instanceof Error ? err.message : "Não foi possível enviar o código.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmCode(event: FormEvent) {
+    event.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      await verifyGmailCode(email, code);
+      navigate("/");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Código inválido. Tente de novo.");
+    } finally {
       setBusy(false);
     }
   }
@@ -42,7 +62,8 @@ export function Login() {
           </h1>
           <p className="mt-5 max-w-sm text-base text-foam/85">
             Agenda, campanha, temas de estudo e um espaço para as ideias da
-            turma. Entre com o Gmail e caminhe com a gente.
+            turma. Entre com o seu Gmail: o Supabase manda o código de
+            validação na sua caixa de entrada.
           </p>
         </div>
 
@@ -52,20 +73,76 @@ export function Login() {
               {error}
             </p>
           )}
-          <button
-            type="button"
-            onClick={google}
-            disabled={busy || demo}
-            className="flex w-full items-center justify-center gap-3 rounded-full bg-cream px-5 py-3.5 text-sm font-semibold text-deep disabled:opacity-70"
-          >
-            <GoogleMark />
-            {busy ? "Abrindo o Google..." : "Entrar com Gmail"}
-          </button>
+
+          {step === "email" ? (
+            <form onSubmit={sendCode} className="space-y-3">
+              <label className="block text-xs uppercase tracking-[0.18em] text-gold">
+                Seu Gmail
+                <input
+                  type="email"
+                  name="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="seu.nome@gmail.com"
+                  className="mt-2 w-full rounded-full border border-cream/20 bg-white/10 px-5 py-3.5 text-sm font-medium text-cream outline-none placeholder:text-foam/50 focus:border-gold"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={busy}
+                className="w-full rounded-full bg-cream px-5 py-3.5 text-sm font-semibold text-deep disabled:opacity-70"
+              >
+                {busy ? "Enviando..." : "Enviar código no Gmail"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={confirmCode} className="space-y-3">
+              <p className="text-sm text-foam/80">
+                Enviamos um código de 6 números para <strong>{email}</strong>.
+              </p>
+              <label className="block text-xs uppercase tracking-[0.18em] text-gold">
+                Código de validação
+                <input
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  required
+                  value={code}
+                  onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="000000"
+                  className="mt-2 w-full rounded-full border border-cream/20 bg-white/10 px-5 py-3.5 text-center font-display text-2xl tracking-[0.4em] text-cream outline-none placeholder:text-foam/40 focus:border-gold"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={busy || code.length !== 6}
+                className="w-full rounded-full bg-cream px-5 py-3.5 text-sm font-semibold text-deep disabled:opacity-70"
+              >
+                {busy ? "Validando..." : "Entrar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setStep("email");
+                  setCode("");
+                  setError("");
+                }}
+                className="w-full text-center text-sm text-foam/75"
+              >
+                Usar outro Gmail
+              </button>
+            </form>
+          )}
+
           {demo && (
             <>
               <p className="text-center text-xs text-foam/70">
                 O Supabase ainda não está ligado neste ambiente. Você pode
-                explorar o portal em modo demonstração.
+                explorar o portal em modo demonstração, ou simular a
+                validação com qualquer código de 6 números.
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -97,28 +174,5 @@ export function Login() {
         </div>
       </div>
     </div>
-  );
-}
-
-function GoogleMark() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden>
-      <path
-        fill="#4285F4"
-        d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5c-.3 1.5-1.2 2.8-2.6 3.6v3h4.2c2.4-2.2 3.4-5.4 3.4-8.7z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 24c3.5 0 6.4-1.2 8.5-3.1l-4.2-3c-1.1.8-2.6 1.3-4.3 1.3-3.3 0-6.1-2.2-7.1-5.2H.6v3.1C2.7 21.3 7 24 12 24z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M4.9 14c-.2-.8-.4-1.6-.4-2.4s.1-1.6.4-2.4V6.1H.6C.2 7.9 0 9.9 0 12s.2 4.1.6 5.9l4.3-3.9z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 4.8c1.9 0 3.6.7 4.9 1.9l3.7-3.7C18.4 1 15.5 0 12 0 7 0 2.7 2.7.6 6.1l4.3 3.1C5.9 7 8.7 4.8 12 4.8z"
-      />
-    </svg>
   );
 }
