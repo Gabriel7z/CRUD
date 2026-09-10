@@ -34,9 +34,19 @@ update public.profiles set role = 'lider' where email = 'seu-gmail@gmail.com';
 
 Só entram endereços `@gmail.com`. Quem é líder publica agenda, campanha e temas. Todo jovem autenticado vê o conteúdo, confirma presença e envia sugestões.
 
-## Publicar
+## Publicar no GitHub Pages
 
-O `npm run build` gera a pasta `dist`. O repositório já inclui `netlify.toml` e `vercel.json` para o roteamento da SPA.
+O deploy é automático: todo push na branch `main` roda o workflow `.github/workflows/deploy-pages.yml`, que builda e publica em `https://SEU-USUARIO.github.io/CRUD/`.
+
+Para ativar (uma vez só):
+
+1. No GitHub, abra **Settings → Pages** do repositório e em *Source* escolha **GitHub Actions**.
+2. Em **Settings → Secrets and variables → Actions**, crie os segredos `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (a anon key é pública por natureza, sem problema em ir para o site).
+3. No Supabase, adicione a URL do Pages em **Authentication → URL configuration**.
+
+Sem os segredos o site publica em modo demonstração. O workflow também copia `index.html` para `404.html`, que faz o papel de rewrite da SPA no Pages.
+
+Se um dia preferir Netlify ou Vercel, o repositório já tem `netlify.toml` e `vercel.json` prontos — mas o Pages atende bem.
 
 ## Identidade
 
