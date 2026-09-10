@@ -18,8 +18,12 @@ type AuthValue = {
   user: Profile | null;
   loading: boolean;
   demo: boolean;
-  sendGmailCode: (email: string) => Promise<void>;
-  verifyGmailCode: (email: string, token: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    confirmPassword: string,
+  ) => Promise<{ needsEmailConfirmation: boolean }>;
   enterDemo: (role: Role) => void;
   signOut: () => Promise<void>;
 };
@@ -41,6 +45,33 @@ function gmailOrThrow(email: string): string {
     throw new Error("Use um endereço @gmail.com para entrar.");
   }
   return value;
+}
+
+function passwordOrThrow(password: string): string {
+  if (password.length < 6) {
+    throw new Error("A senha precisa ter pelo menos 6 caracteres.");
+  }
+  return password;
+}
+
+function translateAuthError(message: string): string {
+  const text = message.toLowerCase();
+  if (text.includes("invalid login credentials")) {
+    return "Gmail ou senha incorretos. Se ainda não tem conta, crie uma.";
+  }
+  if (text.includes("already registered") || text.includes("already been registered")) {
+    return "Esse Gmail já tem conta. Use a aba Entrar.";
+  }
+  if (text.includes("email not confirmed")) {
+    return "Confirme sua conta pelo link que chegou no seu Gmail antes de entrar.";
+  }
+  if (text.includes("password should be at least")) {
+    return "A senha precisa ter pelo menos 6 caracteres.";
+  }
+  if (text.includes("rate limit") || text.includes("too many requests")) {
+    return "Muitas tentativas seguidas. Espere um pouco e tente de novo.";
+  }
+  return message;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -115,25 +146,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       loading,
       demo,
-      sendGmailCode: async (email) => {
+      signIn: async (email, password) => {
         const gmail = gmailOrThrow(email);
-        const supabase = getSupabase();
-        if (!supabase) return;
-        const { error } = await supabase.auth.signInWithOtp({
-          email: gmail,
-          options: {
-            shouldCreateUser: true,
-            emailRedirectTo: window.location.origin,
-          },
-        });
-        if (error) throw error;
-      },
-      verifyGmailCode: async (email, token) => {
-        const gmail = gmailOrThrow(email);
-        const code = token.replace(/\s/g, "");
-        if (!/^\d{6}$/.test(code)) {
-          throw new Error("Digite o código de 6 números que chegou no Gmail.");
-        }
         const supabase = getSupabase();
         if (!supabase) {
           const profile: Profile = {
@@ -147,12 +161,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(profile);
           return;
         }
-        const { error } = await supabase.auth.verifyOtp({
+        const { error } = await supabase.auth.signInWithPassword({
           email: gmail,
-          token: code,
-          type: "email",
+          password,
         });
-        if (error) throw error;
+        if (error) throw new Error(translateAuthError(error.message));
+      },
+      signUp: async (email, password, confirmPassword) => {
+        const gmail = gmailOrThrow(email);
+        passwordOrThrow(password);
+        if (password !== confirmPassword) {
+          throw new Error("As senhas não são iguais. Digite a mesma senha nos dois campos.");
+        }
+        const supabase = getSupabase();
+        if (!supabase) {
+          const profile: Profile = {
+            id: `demo-${gmail}`,
+            email: gmail,
+            full_name: nameFromGmail(gmail),
+            avatar_url: null,
+            role: "jovem",
+          };
+          localStorage.setItem(DEMO_SESSION, JSON.stringify(profile));
+          setUser(profile);
+          return { needsEmailConfirmation: false };
+        }
+        const { data, error } = await supabase.auth.signUp({
+          email: gmail,
+          password,
+          options: {
+            emailRedirectTo: window.location.href,
+            data: { full_name: nameFromGmail(gmail) },
+          },
+        });
+        if (error) throw new Error(translateAuthError(error.message));
+        return { needsEmailConfirmation: !data.session };
       },
       enterDemo: (role) => {
         const profile = demoProfile(role);
