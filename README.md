@@ -10,7 +10,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Sem as chaves do Supabase, o site abre em **modo demonstração** (entrada como jovem ou líder, ou Gmail + qualquer código de 6 números).
+O site já vem apontando para o projeto Supabase do grupo (`src/lib/supabase.ts`). Para usar outro projeto, defina `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` no `.env`, que têm prioridade sobre o padrão.
 
 ## Ligar o Supabase
 
